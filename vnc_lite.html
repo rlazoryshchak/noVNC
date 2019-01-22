@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <style>
+            textarea{
+            display:inline;
+            float:left;
+            }
+            .button {
+            background-color: #4CAF50;
+            border: none;
+            color: white;
+            padding: 7px 32px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            cursor: pointer;
+            }
+            .alert {
+            background-color: #2196F3;
+            padding: 20px;
+            color: white;
+            opacity: 0.65;
+            transition: opacity 0.6s;
+            }
+            .danger {
+            background-color: #F44336;
+            }
+        </style>
+        <script type="module" crossorigin="anonymous">
+            import * as WebUtil from './app/webutil.js';
+            import RFB from './core/rfb.js';
+            
+            var desktopName;
+            var host = new URLSearchParams(window.location.search).get('host');
+            var port = new URLSearchParams(window.location.search).get('port');
+            var password = new URLSearchParams(window.location.search).get('password');
+            
+            document.getElementById('sendCtrlAltDelButton').onclick = sendCtrlAltDel;
+            
+            var rfb = new RFB(
+              document.body, 
+              `ws://${host}:${port}/`,
+              { 
+                autoconnect: true,
+                reconnect: true,
+                reconnect_delay: 10,
+                bell: true,
+                resize: 'scale',
+                credentials: { 
+                  password: password
+                } 
+              }
+            );
+            rfb.addEventListener("connect",  connected);
+            rfb.addEventListener("disconnect", disconnected);
+            rfb.addEventListener("desktopname", updateDesktopName);
+            
+            function updateDesktopName(e) {
+                desktopName = e.detail.name;
+            }
+            
+            function sendCtrlAltDel() {
+                rfb.sendCtrlAltDel();
+                return false;
+            }
+            
+            function status(text, level) {
+                switch (level) {
+                    case 'normal':
+                    case 'warn':
+                    case 'error':
+                        break;
+                    default:
+                        level = "warn";
+                }
+                document.getElementById('noVNC_status_bar').className = "noVNC_status_" + level;
+                document.getElementById('noVNC_status').textContent = text;
+            }
+            
+            function connected(e) {
+                document.getElementById('sendCtrlAltDelButton').disabled = false;
+                document.getElementById('noVNC_status').classList.remove("danger")
+                if (WebUtil.getConfigVar('encrypt',
+                                         (window.location.protocol === "https:"))) {
+                    status("Connected (encrypted) to " + desktopName, "normal");
+                } else {
+                    status("Connected (unencrypted) to " + desktopName, "normal");
+                }
+            }
+            
+            function disconnected(e) {
+                document.getElementById('sendCtrlAltDelButton').disabled = true;
+                document.getElementById('noVNC_status').classList.add("danger")
+                if (e.detail.clean) {
+                    status("Disconnected", "normal");
+                } else {
+                    status("Something went wrong, connection is closed", "error");
+                }
+            }
+        </script>
+    </head>
+    <body>
+        <div id="noVNC_status_bar">
+            <div id="noVNC_left_dummy_elem"></div>
+            <input type=button value="Ctrl+Alt+Del" id="sendCtrlAltDelButton" class="noVNC_shown button">
+            <br></br>
+            <div id="noVNC_status" class="alert">Loading</div>
+        </div>
+    </body>
+</html>
